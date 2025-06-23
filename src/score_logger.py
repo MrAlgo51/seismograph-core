@@ -5,7 +5,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 from scoring import calculate_score
 
 from fetchers.fetch_btc_price import fetch_btc_price
