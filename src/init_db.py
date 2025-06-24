@@ -26,7 +26,32 @@ CREATE TABLE IF NOT EXISTS signals (
 )
 """)
 
-conn.commit()
-conn.close()
+def insert_spread_data(data: dict):
+    conn = sqlite3.connect("seismograph.db")
+    c = conn.cursor()
+
+    # Create spread_data table if it doesn't exist
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS spread_data (
+            timestamp INTEGER PRIMARY KEY,
+            btc_usd REAL,
+            xmr_usd REAL,
+            spread_ratio REAL,
+            spread_zscore REAL
+        )
+    """)
+
+    # Insert data
+    c.execute("""
+        INSERT OR REPLACE INTO spread_data (
+            timestamp, btc_usd, xmr_usd, spread_ratio, spread_zscore
+        ) VALUES (
+            :timestamp, :btc_usd, :xmr_usd, :spread_ratio, :spread_zscore
+        )
+    """, data)
+
+    conn.commit()
+    conn.close()
+
 
 print("✅ Seismograph signals table created successfully.")
