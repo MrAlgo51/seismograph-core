@@ -89,3 +89,28 @@ def insert_mempool_data(data: dict):
 
     conn.commit()
     conn.close()
+
+
+def insert_returns_data(data: dict):
+    conn = sqlite3.connect("data/seismograph.db")
+    c = conn.cursor()
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS returns (
+            timestamp INTEGER PRIMARY KEY,
+            return_1h REAL,
+            return_2h REAL,
+            return_4h REAL
+        )
+    """)
+
+    c.execute("""
+        INSERT OR REPLACE INTO returns (
+            timestamp, return_1h, return_2h, return_4h
+        ) VALUES (
+            :timestamp, :return_1h, :return_2h, :return_4h
+        )
+    """, data)
+
+    conn.commit()
+    conn.close()
