@@ -4,6 +4,7 @@ import time
 from src.fetchers.kraken import get_kraken_price
 from src.utils.zscore import ZScoreTracker
 from src.utils.db import insert_spread_data
+from src.utils.time import get_current_hour_timestamp
 
 zscore_tracker = ZScoreTracker(window_size=48)
 
@@ -19,7 +20,7 @@ def fetch_and_log_xmr_spread():
     spread_z = zscore_tracker.update(spread_ratio)
 
     data = {
-        "timestamp": int(time.time()),
+        "timestamp": get_current_hour_timestamp(),
         "btc_usd": btc_usd,
         "xmr_usd": xmr_usd,
         "spread_ratio": spread_ratio,
