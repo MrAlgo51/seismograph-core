@@ -54,3 +54,38 @@ def insert_premium_data(data: dict):
 
     conn.commit()
     conn.close()
+
+
+def insert_mempool_data(data: dict):
+    conn = sqlite3.connect("data/seismograph.db")
+    c = conn.cursor()
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS mempool (
+            timestamp INTEGER PRIMARY KEY,
+            median_fee REAL,
+            unconfirmed_tx INTEGER,
+            mempool_size INTEGER,
+            fee_p10 REAL,
+            fee_p50 REAL,
+            fee_p90 REAL,
+            bucket_low INTEGER,
+            bucket_med INTEGER,
+            bucket_high INTEGER
+        )
+    """)
+
+    c.execute("""
+        INSERT OR REPLACE INTO mempool (
+            timestamp, median_fee, unconfirmed_tx, mempool_size,
+            fee_p10, fee_p50, fee_p90,
+            bucket_low, bucket_med, bucket_high
+        ) VALUES (
+            :timestamp, :median_fee, :unconfirmed_tx, :mempool_size,
+            :fee_p10, :fee_p50, :fee_p90,
+            :bucket_low, :bucket_med, :bucket_high
+        )
+    """, data)
+
+    conn.commit()
+    conn.close()

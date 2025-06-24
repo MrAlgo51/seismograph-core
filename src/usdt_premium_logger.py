@@ -2,7 +2,7 @@ import time
 from src.fetchers.kraken import get_kraken_price
 from src.utils.zscore import ZScoreTracker
 from src.utils.db import insert_premium_data
-from src.utils.time import get_current_hour_timestamp
+from src.utils.time import get_current_hour_unix
 
 zscore_tracker = ZScoreTracker(window_size=48)
 
@@ -18,7 +18,7 @@ def fetch_and_log_usdt_premium():
     premium_z = zscore_tracker.update(premium_pct)
 
     data = {
-        "timestamp": get_current_hour_timestamp(),
+        "timestamp": get_current_hour_unix(),  # <-- FIXED
         "btc_usdt": btc_usdt,
         "btc_usd": btc_usd,
         "premium_pct": premium_pct,

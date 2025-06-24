@@ -1,7 +1,7 @@
 # src/score_logger.py
 
 import sqlite3
-from src.utils.time import get_current_hour_iso
+from src.utils.time import get_current_hour_iso, get_current_hour_unix
 from src.config.weights import weights
 
 def compute_score(spread_z, premium_z):
@@ -11,31 +11,28 @@ def compute_score(spread_z, premium_z):
     )
 
 def log_score():
-    ts = get_current_hour_iso()
+    ts = get_current_hour_iso()     # ISO for signals table
+    unix_ts = get_current_hour_unix()  # INT for joins
+
     conn = sqlite3.connect("data/seismograph.db")
     c = conn.cursor()
 
-    # Fetch spread data
-    c.execute("SELECT spread_ratio, spread_zscore FROM spread_data WHERE timestamp = (SELECT MAX(timestamp) FROM spread_data)")
+    # Pull hourly-matched spread data
+    c.execute("SELECT spread_ratio, spread_zscore FROM spread_data WHERE timestamp = ?", (unix_ts,))
     spread = c.fetchone()
 
-    # Fetch premium data
-    c.execute("SELECT premium_pct, premium_zscore FROM premium_data WHERE timestamp = (SELECT MAX(timestamp) FROM premium_data)")
+    # Pull hourly-matched premium data
+    c.execute("SELECT premium_pct, premium_zscore, btc_usd FROM premium_data WHERE timestamp = ?", (unix_ts,))
     premium = c.fetchone()
 
     if not spread or not premium:
-        print("[SCORE_LOGGER] Missing data.")
+        print("[SCORE_LOGGER] Missing data for current hour.")
         return
 
     spread_ratio, spread_z = spread
-    premium_pct, premium_z = premium
+    premium_pct, premium_z, btc_price = premium
 
     score = compute_score(spread_z, premium_z)
-
-    # Get current BTC price (can use premium's btc_usd as proxy)
-    c.execute("SELECT btc_usd FROM premium_data ORDER BY timestamp DESC LIMIT 1")
-    btc_row = c.fetchone()
-    btc_price = btc_row[0] if btc_row else None
 
     data = {
         "timestamp": ts,
@@ -60,7 +57,7 @@ def log_score():
         )
     """)
 
-    # Insert or update signal row
+    # Insert or update row
     c.execute("""
         INSERT OR REPLACE INTO signals (
             timestamp, btc_price, spread_pct, spread_z, premium_pct, premium_z, score
