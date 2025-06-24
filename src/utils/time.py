@@ -1,9 +1,8 @@
-import time
+from datetime import datetime, timezone
 
-def get_current_hour_timestamp() -> int:
+def get_current_hour_iso() -> str:
     """
-    Returns the current timestamp rounded down to the top of the hour.
-    Example: 14:38 → returns timestamp for 14:00:00
+    Returns an ISO8601 UTC timestamp snapped to the top of the current hour.
+    Example: '2025-06-24T18:00:00+00:00'
     """
-    now = int(time.time())
-    return now - (now % 3600)
+    return datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0).isoformat()

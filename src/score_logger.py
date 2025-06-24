@@ -1,59 +1,77 @@
 # src/score_logger.py
-import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-
 
 import sqlite3
-from datetime import datetime, timezone
-from scoring import calculate_score
+from src.utils.time import get_current_hour_iso
+from src.config.weights import weights
 
-from fetchers.fetch_btc_price import fetch_btc_price
-from fetchers.fetch_fees import fetch_fee_data
-from scoring import calculate_score
+def compute_score(spread_z, premium_z):
+    return (
+        spread_z * weights.get("spread_zscore", 0) +
+        premium_z * weights.get("premium_zscore", 0)
+    )
 
+def log_score():
+    ts = get_current_hour_iso()
+    conn = sqlite3.connect("data/seismograph.db")
+    c = conn.cursor()
 
-# Initialize clean data dict
-data = {
-    "timestamp": datetime.now(timezone.utc).isoformat()
-}
+    # Fetch spread data
+    c.execute("SELECT spread_ratio, spread_zscore FROM spread_data WHERE timestamp = (SELECT MAX(timestamp) FROM spread_data)")
+    spread = c.fetchone()
 
-# Merge in live data from each fetcher
-data.update(fetch_btc_price())
-data.update(fetch_fee_data())
+    # Fetch premium data
+    c.execute("SELECT premium_pct, premium_zscore FROM premium_data WHERE timestamp = (SELECT MAX(timestamp) FROM premium_data)")
+    premium = c.fetchone()
 
-# Calculate score
-data["score"] = calculate_score(data)
+    if not spread or not premium:
+        print("[SCORE_LOGGER] Missing data.")
+        return
 
+    spread_ratio, spread_z = spread
+    premium_pct, premium_z = premium
 
-# Connect to the SQLite DB
-conn = sqlite3.connect("data/seismograph.db")
-cursor = conn.cursor()
+    score = compute_score(spread_z, premium_z)
 
-# Insert into signals table
-cursor.execute("""
-INSERT OR REPLACE INTO signals (
-    timestamp, btc_price, spread_pct, spread_z,
-    premium_pct, premium_z, median_fee, unconfirmed_tx,
-    mempool_size, funding_rate, funding_z, score
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-""", (
-    data["timestamp"],
-    data.get("btc_price"),
-    data.get("spread_pct"),
-    data.get("spread_z"),
-    data.get("premium_pct"),
-    data.get("premium_z"),
-    data.get("median_fee"),
-    data.get("unconfirmed_tx"),
-    data.get("mempool_size"),
-    data.get("funding_rate"),
-    data.get("funding_z"),
-    data.get("score")
-))
+    # Get current BTC price (can use premium's btc_usd as proxy)
+    c.execute("SELECT btc_usd FROM premium_data ORDER BY timestamp DESC LIMIT 1")
+    btc_row = c.fetchone()
+    btc_price = btc_row[0] if btc_row else None
 
+    data = {
+        "timestamp": ts,
+        "btc_price": btc_price,
+        "spread_pct": spread_ratio,
+        "spread_z": spread_z,
+        "premium_pct": premium_pct,
+        "premium_z": premium_z,
+        "score": score
+    }
 
-conn.commit()
-conn.close()
+    # Create table if needed
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS signals (
+            timestamp TEXT PRIMARY KEY,
+            btc_price REAL,
+            spread_pct REAL,
+            spread_z REAL,
+            premium_pct REAL,
+            premium_z REAL,
+            score REAL
+        )
+    """)
 
-print(f"✅ Signal logged at {data['timestamp']} with score {data['score']}")
+    # Insert or update signal row
+    c.execute("""
+        INSERT OR REPLACE INTO signals (
+            timestamp, btc_price, spread_pct, spread_z, premium_pct, premium_z, score
+        ) VALUES (
+            :timestamp, :btc_price, :spread_pct, :spread_z, :premium_pct, :premium_z, :score
+        )
+    """, data)
+
+    conn.commit()
+    conn.close()
+    print(f"[SCORE_LOGGER] Score logged: {score:.4f}")
+
+if __name__ == "__main__":
+    log_score()
