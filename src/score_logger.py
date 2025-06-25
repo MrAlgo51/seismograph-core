@@ -2,38 +2,49 @@
 
 import sqlite3
 from src.utils.time import get_current_hour_iso, get_current_hour_unix
-from src.config.weights import weights
-
-def compute_score(spread_z, premium_z):
-    return (
-        spread_z * weights.get("spread_zscore", 0) +
-        premium_z * weights.get("premium_zscore", 0)
-    )
+from src.config.score_variants import score_configs
+from src.utils.scoring import compute_scores
 
 def log_score():
-    ts = get_current_hour_iso()     # ISO for signals table
-    unix_ts = get_current_hour_unix()  # INT for joins
+    ts = get_current_hour_iso()
+    unix_ts = get_current_hour_unix()
 
     conn = sqlite3.connect("data/seismograph.db")
     c = conn.cursor()
 
-    # Pull hourly-matched spread data
-    c.execute("SELECT spread_ratio, spread_zscore FROM spread_data WHERE timestamp = ?", (unix_ts,))
+    # Fetch spread data
+    c.execute("SELECT spread_ratio, spread_z FROM spread_data WHERE timestamp = ?", (unix_ts,))
     spread = c.fetchone()
 
-    # Pull hourly-matched premium data
-    c.execute("SELECT premium_pct, premium_zscore, btc_usd FROM premium_data WHERE timestamp = ?", (unix_ts,))
+    # Fetch premium data
+    c.execute("SELECT premium_pct, premium_z, btc_usd FROM premium_data WHERE timestamp = ?", (unix_ts,))
     premium = c.fetchone()
 
-    if not spread or not premium:
+    # Fetch mempool data
+    c.execute("SELECT median_fee, unconfirmed_tx FROM mempool WHERE timestamp = ?", (unix_ts,))
+    mempool = c.fetchone()
+
+    if not (spread and premium and mempool):
         print("[SCORE_LOGGER] Missing data for current hour.")
         return
 
+    # Extract values
     spread_ratio, spread_z = spread
     premium_pct, premium_z, btc_price = premium
+    median_fee, unconfirmed_tx = mempool
 
-    score = compute_score(spread_z, premium_z)
+    # Build input row for scoring
+    input_row = {
+        "spread_z": spread_z,
+        "premium_z": premium_z,
+        "median_fee": median_fee,
+        "unconfirmed_tx": unconfirmed_tx
+    }
 
+    # Compute all score variants
+    score_dict = compute_scores(input_row)
+
+    # Base columns
     data = {
         "timestamp": ts,
         "btc_price": btc_price,
@@ -41,11 +52,14 @@ def log_score():
         "spread_z": spread_z,
         "premium_pct": premium_pct,
         "premium_z": premium_z,
-        "score": score
     }
 
-    # Create table if needed
-    c.execute("""
+    # Add each score to the data dict
+    data.update(score_dict)
+
+    # Build CREATE TABLE with dynamic score columns
+    score_columns = ",\n".join([f"{name} REAL" for name in score_dict.keys()])
+    c.execute(f"""
         CREATE TABLE IF NOT EXISTS signals (
             timestamp TEXT PRIMARY KEY,
             btc_price REAL,
@@ -53,22 +67,24 @@ def log_score():
             spread_z REAL,
             premium_pct REAL,
             premium_z REAL,
-            score REAL
+            {score_columns}
         )
     """)
 
-    # Insert or update row
-    c.execute("""
+    # Build dynamic insert query
+    all_columns = ", ".join(data.keys())
+    placeholders = ", ".join([f":{k}" for k in data.keys()])
+    c.execute(f"""
         INSERT OR REPLACE INTO signals (
-            timestamp, btc_price, spread_pct, spread_z, premium_pct, premium_z, score
+            {all_columns}
         ) VALUES (
-            :timestamp, :btc_price, :spread_pct, :spread_z, :premium_pct, :premium_z, :score
+            {placeholders}
         )
     """, data)
 
     conn.commit()
     conn.close()
-    print(f"[SCORE_LOGGER] Score logged: {score:.4f}")
+    print(f"[SCORE_LOGGER] Scores logged: {', '.join(score_dict.keys())}")
 
 if __name__ == "__main__":
     log_score()
