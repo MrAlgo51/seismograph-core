@@ -3,6 +3,8 @@ from src.utils.db import insert_mempool_data
 from src.utils.time import get_current_hour_unix
 
 
+
+
 def fetch_and_log_mempool():
     data = fetch_mempool_data()
     if not data:
