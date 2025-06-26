@@ -1,10 +1,25 @@
-import time
+import sqlite3
+import pandas as pd
 from src.fetchers.kraken import get_kraken_price
-from src.utils.zscore import ZScoreTracker
 from src.utils.db import insert_premium_data
 from src.utils.time import get_current_hour_unix
 
-zscore_tracker = ZScoreTracker(window_size=48)
+DB_PATH = "data/seismograph.db"
+ROLLING_WINDOW = 48  # hours
+
+def compute_zscore(series):
+    if len(series) < 2:
+        return 0.0
+    return (series.iloc[-1] - series.mean()) / series.std()
+
+def fetch_premium_history():
+    conn = sqlite3.connect(DB_PATH)
+    df = pd.read_sql_query(
+        f"SELECT timestamp, premium_pct FROM premium_data ORDER BY timestamp DESC LIMIT {ROLLING_WINDOW - 1}",
+        conn
+    )
+    conn.close()
+    return df.sort_values("timestamp")
 
 def fetch_and_log_usdt_premium():
     btc_usdt = get_kraken_price("BTC/USDT")
@@ -15,14 +30,17 @@ def fetch_and_log_usdt_premium():
         return
 
     premium_pct = ((btc_usdt - btc_usd) / btc_usd) * 100
-    premium_z = zscore_tracker.update(premium_pct)
+    df = fetch_premium_history()
+    df = df.append({"timestamp": get_current_hour_unix(), "premium_pct": premium_pct}, ignore_index=True)
+
+    premium_z = compute_zscore(df["premium_pct"])
 
     data = {
-        "timestamp": get_current_hour_unix(),  # <-- FIXED
+        "timestamp": get_current_hour_unix(),
         "btc_usdt": btc_usdt,
         "btc_usd": btc_usd,
         "premium_pct": premium_pct,
-        "premium_zscore": premium_z,
+        "premium_zscore": premium_z
     }
 
     insert_premium_data(data)
