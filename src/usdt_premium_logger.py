@@ -31,7 +31,11 @@ def fetch_and_log_usdt_premium():
 
     premium_pct = ((btc_usdt - btc_usd) / btc_usd) * 100
     df = fetch_premium_history()
-    df = df.append({"timestamp": get_current_hour_unix(), "premium_pct": premium_pct}, ignore_index=True)
+    df = pd.DataFrame([{
+    "timestamp": get_current_hour_unix(),
+    "premium_pct": premium_pct
+}])
+
 
     premium_z = compute_zscore(df["premium_pct"])
 
