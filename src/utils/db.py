@@ -1,5 +1,6 @@
 import sqlite3
 import os
+import pandas as pd
 
 # Ensure the data folder exists
 os.makedirs("data", exist_ok=True)
@@ -66,22 +67,28 @@ def insert_mempool_data(data: dict):
             fee_p90 REAL,
             bucket_low INTEGER,
             bucket_med INTEGER,
-            bucket_high INTEGER
+            bucket_high INTEGER,
+            median_fee_z REAL,
+            unconfirmed_tx_z REAL,
+            mempool_size_z REAL
         )
     """)
     c.execute("""
         INSERT OR REPLACE INTO mempool (
             timestamp, median_fee, unconfirmed_tx, mempool_size,
             fee_p10, fee_p50, fee_p90,
-            bucket_low, bucket_med, bucket_high
+            bucket_low, bucket_med, bucket_high,
+            median_fee_z, unconfirmed_tx_z, mempool_size_z
         ) VALUES (
             :timestamp, :median_fee, :unconfirmed_tx, :mempool_size,
             :fee_p10, :fee_p50, :fee_p90,
-            :bucket_low, :bucket_med, :bucket_high
+            :bucket_low, :bucket_med, :bucket_high,
+            :median_fee_z, :unconfirmed_tx_z, :mempool_size_z
         )
     """, data)
     conn.commit()
     conn.close()
+
 
 
 def insert_returns_data(data: dict):
@@ -175,18 +182,40 @@ def get_latest_premium(timestamp: int):
     return row and dict(zip([d[0] for d in c.description], row))
 
 
-def get_latest_mempool(timestamp: int):
+def fetch_recent_mempool_data(limit=48):
     conn = sqlite3.connect("data/seismograph.db")
     c = conn.cursor()
+
+    # Ensure table exists before querying
     c.execute("""
-        SELECT * FROM mempool
-        WHERE timestamp <= ?
+        CREATE TABLE IF NOT EXISTS mempool (
+            timestamp INTEGER PRIMARY KEY,
+            median_fee REAL,
+            unconfirmed_tx INTEGER,
+            mempool_size INTEGER,
+            fee_p10 REAL,
+            fee_p50 REAL,
+            fee_p90 REAL,
+            bucket_low INTEGER,
+            bucket_med INTEGER,
+            bucket_high INTEGER,
+            median_fee_z REAL,
+            unconfirmed_tx_z REAL,
+            mempool_size_z REAL
+        )
+    """)
+
+    query = """
+        SELECT timestamp, median_fee, unconfirmed_tx, mempool_size
+        FROM mempool
         ORDER BY timestamp DESC
-        LIMIT 1
-    """, (timestamp,))
-    row = c.fetchone()
+        LIMIT ?
+    """
+    df = pd.read_sql_query(query, conn, params=(limit,))
     conn.close()
-    return row and dict(zip([d[0] for d in c.description], row))
+    return df.sort_values("timestamp")
+
+
 
 
 def get_latest_funding(timestamp: int):
