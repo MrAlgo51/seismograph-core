@@ -118,39 +118,32 @@ def insert_signal_data(data: dict):
     c = conn.cursor()
     c.execute("""
         CREATE TABLE IF NOT EXISTS signals (
-            timestamp TEXT PRIMARY KEY,
+            timestamp INTEGER PRIMARY KEY,
             btc_price REAL,
-            spread_pct REAL,
-            spread_z REAL,
-            premium_pct REAL,
-            premium_z REAL,
-            median_fee REAL,
-            unconfirmed_tx INTEGER,
-            mempool_size INTEGER,
-            funding_rate REAL,
-            funding_z REAL,
-            score_urgency_only REAL,
-            score_direction_only REAL,
-            score_combined_basic REAL,
-            score_combined_weighted REAL,
-            score_urgency_then_direction REAL
+            spread_zscore REAL,
+            premium_zscore REAL,
+            median_fee_z REAL,
+            unconfirmed_tx_z REAL,
+            mempool_size_z REAL,
+            score REAL
         )
     """)
     c.execute("""
         INSERT OR REPLACE INTO signals (
-            timestamp, btc_price, spread_pct, spread_z, premium_pct, premium_z,
-            median_fee, unconfirmed_tx, mempool_size, funding_rate, funding_z,
-            score_urgency_only, score_direction_only, score_combined_basic,
-            score_combined_weighted, score_urgency_then_direction
+            timestamp, btc_price,
+            spread_zscore, premium_zscore,
+            median_fee_z, unconfirmed_tx_z, mempool_size_z,
+            score
         ) VALUES (
-            :timestamp, :btc_price, :spread_pct, :spread_z, :premium_pct, :premium_z,
-            :median_fee, :unconfirmed_tx, :mempool_size, :funding_rate, :funding_z,
-            :score_urgency_only, :score_direction_only, :score_combined_basic,
-            :score_combined_weighted, :score_urgency_then_direction
+            :timestamp, :btc_price,
+            :spread_zscore, :premium_zscore,
+            :median_fee_z, :unconfirmed_tx_z, :mempool_size_z,
+            :score
         )
     """, data)
     conn.commit()
     conn.close()
+
 
 # === FETCH FUNCTIONS ===
 
@@ -256,3 +249,17 @@ def get_latest_funding(timestamp: int):
     row = c.fetchone()
     conn.close()
     return row and dict(zip([d[0] for d in c.description], row))
+
+def get_latest_mempool(timestamp: int):
+    conn = sqlite3.connect("data/seismograph.db")
+    c = conn.cursor()
+    c.execute("""
+        SELECT * FROM mempool
+        WHERE timestamp <= ?
+        ORDER BY timestamp DESC
+        LIMIT 1
+    """, (timestamp,))
+    row = c.fetchone()
+    conn.close()
+    return row and dict(zip([d[0] for d in c.description], row))
+
