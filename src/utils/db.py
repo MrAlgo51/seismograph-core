@@ -157,6 +157,18 @@ def insert_signal_data(data: dict):
 def get_latest_spread(timestamp: int):
     conn = sqlite3.connect("data/seismograph.db")
     c = conn.cursor()
+
+    # Ensure table exists
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS spread_data (
+            timestamp INTEGER PRIMARY KEY,
+            btc_usd REAL,
+            xmr_usd REAL,
+            spread_ratio REAL,
+            spread_zscore REAL
+        )
+    """)
+
     c.execute("""
         SELECT * FROM spread_data
         WHERE timestamp <= ?
@@ -168,9 +180,22 @@ def get_latest_spread(timestamp: int):
     return row and dict(zip([d[0] for d in c.description], row))
 
 
+
 def get_latest_premium(timestamp: int):
     conn = sqlite3.connect("data/seismograph.db")
     c = conn.cursor()
+
+    # ✅ Ensure table exists
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS premium_data (
+            timestamp INTEGER PRIMARY KEY,
+            btc_usdt REAL,
+            btc_usd REAL,
+            premium_pct REAL,
+            premium_zscore REAL
+        )
+    """)
+
     c.execute("""
         SELECT * FROM premium_data
         WHERE timestamp <= ?
@@ -180,6 +205,7 @@ def get_latest_premium(timestamp: int):
     row = c.fetchone()
     conn.close()
     return row and dict(zip([d[0] for d in c.description], row))
+
 
 
 def fetch_recent_mempool_data(limit=48):
