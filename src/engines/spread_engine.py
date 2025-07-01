@@ -25,10 +25,11 @@ class SpreadEngine:
         # Pull recent ratios
         recent = []
         for i in range(self.zscore_window):
-            offset = 60 * i
-            prior = get_latest_spread(timestamp - offset)
-            if prior:
-                recent.append(prior["spread_ratio"])
+           offset = 3600 * i
+           prior = get_latest_spread(timestamp - offset)
+           if prior:
+               recent.append(prior["spread_ratio"])
+
 
         spread_z = compute_z_score(recent, spread_ratio)
 

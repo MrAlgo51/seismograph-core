@@ -1,9 +1,9 @@
 import time
 import requests
-from src.utils.db import insert_premium_data, get_latest_premium
+from src.utils.db import insert_usdt_premium_data, get_latest_usdt_premium
 from src.utils.zscore import compute_z_score
 
-class PremiumEngine:
+class USDTPremiumEngine:
     def __init__(self, zscore_window=48):
         self.zscore_window = zscore_window
         self.api_usdt_url = "https://api.kraken.com/0/public/Ticker?pair=XBTUSDT"
@@ -13,7 +13,7 @@ class PremiumEngine:
         r = requests.get(url)
         data = r.json()
         result = list(data["result"].values())[0]
-        return float(result["c"][0])  # last trade close price
+        return float(result["c"][0])
 
     def run(self):
         timestamp = int(time.time())
@@ -25,10 +25,11 @@ class PremiumEngine:
         # Fetch recent premiums for z-score calculation
         recent = []
         for i in range(self.zscore_window):
-            offset = 60 * i  # 1-minute steps
-            prior = get_latest_premium(timestamp - offset)
-            if prior:
-                recent.append(prior["premium_pct"])
+           offset = 3600 * i
+           prior = get_latest_usdt_premium(timestamp - offset)
+           if prior:
+             recent.append(prior["usdt_premium_pct"])
+
 
         premium_z = compute_z_score(recent, premium_pct)
 
@@ -36,9 +37,9 @@ class PremiumEngine:
             "timestamp": timestamp,
             "btc_usdt": btc_usdt,
             "btc_usd": btc_usd,
-            "premium_pct": premium_pct,
-            "premium_zscore": premium_z
+            "usdt_premium_pct": premium_pct,
+            "usdt_premium_zscore": premium_z
         }
 
-        insert_premium_data(row)
-        print(f"[+] PremiumEngine logged at {timestamp}")
+        insert_usdt_premium_data(row)
+        print(f"[+] USDTPremiumEngine logged at {timestamp}")

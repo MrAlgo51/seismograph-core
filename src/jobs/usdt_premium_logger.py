@@ -1,9 +1,11 @@
-import sys
-import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+from src.engines.usdt_premium_engine import USDTPremiumEngine
 
-from src.engines.premium_engine import PremiumEngine
+def main():
+    try:
+        engine = USDTPremiumEngine()
+        engine.run()
+    except Exception as e:
+        print(f"[USDT_PREMIUM_LOGGER] Error: {e}")
 
 if __name__ == "__main__":
-    engine = PremiumEngine(zscore_window=48)
-    engine.run()
+    main()

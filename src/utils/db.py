@@ -30,27 +30,28 @@ def insert_spread_data(data: dict):
     conn.close()
 
 
-def insert_premium_data(data: dict):
+def insert_usdt_premium_data(data: dict):
     conn = sqlite3.connect("data/seismograph.db")
     c = conn.cursor()
     c.execute("""
-        CREATE TABLE IF NOT EXISTS premium_data (
+        CREATE TABLE IF NOT EXISTS usdt_premium_data (
             timestamp INTEGER PRIMARY KEY,
             btc_usdt REAL,
             btc_usd REAL,
-            premium_pct REAL,
-            premium_zscore REAL
+            usdt_premium_pct REAL,
+            usdt_premium_zscore REAL
         )
     """)
     c.execute("""
-        INSERT OR REPLACE INTO premium_data (
-            timestamp, btc_usdt, btc_usd, premium_pct, premium_zscore
+        INSERT OR REPLACE INTO usdt_premium_data (
+            timestamp, btc_usdt, btc_usd, usdt_premium_pct, usdt_premium_zscore
         ) VALUES (
-            :timestamp, :btc_usdt, :btc_usd, :premium_pct, :premium_zscore
+            :timestamp, :btc_usdt, :btc_usd, :usdt_premium_pct, :usdt_premium_zscore
         )
     """, data)
     conn.commit()
     conn.close()
+
 
 
 def insert_mempool_data(data: dict):
@@ -117,30 +118,31 @@ def insert_signal_data(data: dict):
     conn = sqlite3.connect("data/seismograph.db")
     c = conn.cursor()
     c.execute("""
-        CREATE TABLE IF NOT EXISTS signals (
-            timestamp INTEGER PRIMARY KEY,
-            btc_price REAL,
-            spread_zscore REAL,
-            premium_zscore REAL,
-            median_fee_z REAL,
-            unconfirmed_tx_z REAL,
-            mempool_size_z REAL,
-            score REAL
-        )
+    CREATE TABLE IF NOT EXISTS signals (
+        timestamp INTEGER PRIMARY KEY,
+        btc_price REAL,
+        spread_zscore REAL,
+        usdt_premium_zscore REAL,
+        median_fee_z REAL,
+        unconfirmed_tx_z REAL,
+        mempool_size_z REAL,
+        score REAL
+    )
     """)
     c.execute("""
         INSERT OR REPLACE INTO signals (
             timestamp, btc_price,
-            spread_zscore, premium_zscore,
+            spread_zscore, usdt_premium_zscore,
             median_fee_z, unconfirmed_tx_z, mempool_size_z,
             score
         ) VALUES (
             :timestamp, :btc_price,
-            :spread_zscore, :premium_zscore,
+            :spread_zscore, :usdt_premium_zscore,
             :median_fee_z, :unconfirmed_tx_z, :mempool_size_z,
             :score
         )
     """, data)
+
     conn.commit()
     conn.close()
 
@@ -174,23 +176,20 @@ def get_latest_spread(timestamp: int):
 
 
 
-def get_latest_premium(timestamp: int):
+def get_latest_usdt_premium(timestamp: int):
     conn = sqlite3.connect("data/seismograph.db")
     c = conn.cursor()
-
-    # ✅ Ensure table exists
     c.execute("""
-        CREATE TABLE IF NOT EXISTS premium_data (
+        CREATE TABLE IF NOT EXISTS usdt_premium_data (
             timestamp INTEGER PRIMARY KEY,
             btc_usdt REAL,
             btc_usd REAL,
-            premium_pct REAL,
-            premium_zscore REAL
+            usdt_premium_pct REAL,
+            usdt_premium_zscore REAL
         )
     """)
-
     c.execute("""
-        SELECT * FROM premium_data
+        SELECT * FROM usdt_premium_data
         WHERE timestamp <= ?
         ORDER BY timestamp DESC
         LIMIT 1

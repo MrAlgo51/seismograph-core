@@ -3,7 +3,7 @@ from config.weights import weights
 from src.utils.zscore import compute_z_score
 from src.utils.db import (
     get_latest_spread,
-    get_latest_premium,
+    get_latest_usdt_premium,
     get_latest_mempool,
     insert_signal_data
 )
@@ -14,16 +14,16 @@ class ScoreEngine:
 
     def run(self):
         spread = get_latest_spread(self.timestamp)
-        premium = get_latest_premium(self.timestamp)
+        usdt_premium = get_latest_usdt_premium(self.timestamp)
         mempool = get_latest_mempool(self.timestamp)
 
-        if not all([spread, premium, mempool]):
+        if not all([spread, usdt_premium, mempool]):
             raise ValueError("Missing one or more data sources")
 
-        # Build feature vector
+        # Build feature vector with correct keys
         features = {
             "spread_zscore": spread["spread_zscore"],
-            "premium_zscore": premium["premium_zscore"],
+            "usdt_premium_zscore": usdt_premium["usdt_premium_zscore"],  # updated
             "median_fee_z": mempool["median_fee_z"],
             "unconfirmed_tx_z": mempool["unconfirmed_tx_z"],
             "mempool_size_z": mempool["mempool_size_z"]
