@@ -25,11 +25,16 @@ def main():
 
     print("\n=== Seismograph Full Pipeline Starting ===")
 
-    run_step("Spread Logger", run_spread)
-    run_step("USDT Premium Logger", run_usdt_premium)
-    run_step("Mempool Logger", run_mempool)
-    run_step("Score Logger", run_score)
-    run_step("Returns Logger", run_returns)
+    steps = [
+        ("Spread Logger", run_spread),
+        ("USDT Premium Logger", run_usdt_premium),
+        ("Mempool Logger", run_mempool),
+        ("Score Logger", run_score),
+        ("Returns Logger", run_returns),
+    ]
+
+    for label, func in steps:
+        run_step(label, func)
 
     print("\n=== Pipeline Complete ===")
 
