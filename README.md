@@ -1,25 +1,18 @@
-# seismograph-core
-Next-gen Bitcoin stress signal system. Modular, logged, and built for edge.
-
 <pre>seismograph-core/                 # Top-level project folder
 │
-├── .gitignore                   # Git: files to exclude from version control
-├── fix_funding_table.py         # (One-off) Script to fix/patch the funding table in the database
-├── fix_premium_table.py         # (One-off) Script to fix/patch the USDT premium table
-├── fix_signals_table.py         # (One-off) Script to fix/patch the signals table
-├── fix_spread_table.py          # (One-off) Script to fix/patch the spread table
-├── labels.md                    # Markdown notes: probably label definitions or documentation
-├── notes.md                     # Markdown notes: your general project notes
 ├── README.md                    # Main project documentation (start here!)
-├── runall.log                   # Log file output from a previous pipeline run
+│
+├── .gitignore                   # Git: files to exclude from version control
+│
+├── labels.md                    # Markdown: label definitions/documentation
+├── notes.md                     # Markdown: general project notes
+│
 ├── run_logger.py                # Script: runs main logging process (core signals logger)
 ├── run_usdt_premium_logger.py   # Script: runs the USDT premium logger
 ├── run_xmr_spread_logger.py     # Script: runs the XMR spread logger
 │
-├── .git/                        # (Hidden) Git repository metadata (ignore)
-│
-├── data/                        # Data directory (contains SQLite DBs and possibly CSVs)
-│   ├── seismograph.db           # Main SQLite database with all signals, returns, etc.
+├── data/                        # Data directory (SQLite DBs, CSVs, etc)
+│   ├── seismograph.db           # Main SQLite database (signals, returns, etc.)
 │   └── (other data files…)      # (Other .db or .csv files if present)
 │
 ├── jobs/                        # Scheduled or batch job scripts
@@ -36,16 +29,17 @@ Next-gen Bitcoin stress signal system. Modular, logged, and built for edge.
 │   ├── config.py                # Stores config, keys, or DB paths
 │   ├── scoring.py               # Scoring logic for signal calculation
 │   ├── utils.py                 # Utility/helper functions
-│   ├── (other modules…)         # Any other shared code for import
+│   └── (other modules…)         # Any other shared code for import
 │
-├── scripts/                     # One-off, utility, or data migration scripts
-│   ├── backup_db.py             # Backs up the database (manual or scheduled)
-│   └── (other scripts…)         # Any other migration, export, or fixup scripts
+├── scripts/                     # Utility/data migration scripts (rarely run, not core pipeline)
+│   ├── backup_db.py             # Script: backs up the database (manual or scheduled)
+│   └── (other scripts…)         # Any migration/export/fixup scripts
 │
 ├── visualizations/              # Notebooks and scripts for visualization/analysis
 │   ├── analysis.ipynb           # Jupyter notebook for interactive analysis
 │   ├── plot_returns.py          # Python script for plotting returns
-│   ├── (other visualization…)   # Any other .ipynb or plot scripts
+│   └── (other visualization…)   # Any other .ipynb or plot scripts
 │
 └── tests/                       # Unit tests or test scripts (if present)
     └── (test files…)            # Test code to validate pipeline</pre>
+
