@@ -1,7 +1,7 @@
 # seismograph-core
 Next-gen Bitcoin stress signal system. Modular, logged, and built for edge.
 
-seismograph-core/                 # Top-level project folder
+<pre>seismograph-core/                 # Top-level project folder
 │
 ├── .gitignore                   # Git: files to exclude from version control
 ├── fix_funding_table.py         # (One-off) Script to fix/patch the funding table in the database
@@ -48,4 +48,4 @@ seismograph-core/                 # Top-level project folder
 │   ├── (other visualization…)   # Any other .ipynb or plot scripts
 │
 └── tests/                       # Unit tests or test scripts (if present)
-    └── (test files…)            # Test code to validate pipeline
+    └── (test files…)            # Test code to validate pipeline</pre>
