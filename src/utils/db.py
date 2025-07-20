@@ -98,16 +98,44 @@ def insert_returns_data(data: dict):
     c.execute("""
         CREATE TABLE IF NOT EXISTS returns (
             timestamp INTEGER PRIMARY KEY,
-            return_1h REAL,
-            return_2h REAL,
-            return_4h REAL
+            vwap REAL,
+            vwap_percent_away REAL,
+            total_volume REAL,
+            volume_zscore REAL,
+            btc_price_return_1h REAL,
+            btc_price_return_2h REAL,
+            btc_price_return_4h REAL,
+            vwap_return_1h REAL,
+            vwap_return_2h REAL,
+            vwap_return_4h REAL,
+            vwap_percent_away_return_1h REAL,
+            vwap_percent_away_return_2h REAL,
+            vwap_percent_away_return_4h REAL,
+            total_volume_return_1h REAL,
+            total_volume_return_2h REAL,
+            total_volume_return_4h REAL,
+            volume_zscore_return_1h REAL,
+            volume_zscore_return_2h REAL,
+            volume_zscore_return_4h REAL
         )
     """)
     c.execute("""
         INSERT OR REPLACE INTO returns (
-            timestamp, return_1h, return_2h, return_4h
+            timestamp,
+            vwap, vwap_percent_away, total_volume, volume_zscore,
+            btc_price_return_1h, btc_price_return_2h, btc_price_return_4h,
+            vwap_return_1h, vwap_return_2h, vwap_return_4h,
+            vwap_percent_away_return_1h, vwap_percent_away_return_2h, vwap_percent_away_return_4h,
+            total_volume_return_1h, total_volume_return_2h, total_volume_return_4h,
+            volume_zscore_return_1h, volume_zscore_return_2h, volume_zscore_return_4h
         ) VALUES (
-            :timestamp, :return_1h, :return_2h, :return_4h
+            :timestamp,
+            :vwap, :vwap_percent_away, :total_volume, :volume_zscore,
+            :btc_price_return_1h, :btc_price_return_2h, :btc_price_return_4h,
+            :vwap_return_1h, :vwap_return_2h, :vwap_return_4h,
+            :vwap_percent_away_return_1h, :vwap_percent_away_return_2h, :vwap_percent_away_return_4h,
+            :total_volume_return_1h, :total_volume_return_2h, :total_volume_return_4h,
+            :volume_zscore_return_1h, :volume_zscore_return_2h, :volume_zscore_return_4h
         )
     """, data)
     conn.commit()
@@ -262,3 +290,18 @@ def get_latest_mempool(timestamp: int):
     conn.close()
     return row and dict(zip([d[0] for d in c.description], row))
 
+def fetch_signal(ts):
+    """
+    Fetch the signal row at a given timestamp.
+    Returns a dict with all columns, or None if not found.
+    """
+    conn = sqlite3.connect("data/seismograph.db")
+    c = conn.cursor()
+    c.execute("SELECT * FROM signals WHERE timestamp = ?", (ts,))
+    row = c.fetchone()
+    if row:
+        cols = [d[0] for d in c.description]
+        conn.close()
+        return dict(zip(cols, row))
+    conn.close()
+    return None

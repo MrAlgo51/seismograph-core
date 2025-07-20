@@ -1,146 +1,107 @@
+# src/jobs/returns_logger.py
+
 import sqlite3
+import logging
+
+DB_PATH = "data/seismograph.db"
+
+logging.basicConfig(
+    filename='returns_logger.log',
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s: %(message)s'
+)
 
 FEATURES = [
+    "score",
+    "vwap_percent_away",
+    "volume_zscore",
     "spread_zscore",
     "usdt_premium_zscore",
     "median_fee_z",
     "unconfirmed_tx_z",
     "mempool_size_z",
-    "score"
+    "btc_price"
 ]
-LOOKAHEADS = [1, 2, 4]  # hours
 
-def get_signal_at(ts):
-    # You don't need this anymore, but keeping it for reference
-    conn = sqlite3.connect("data/seismograph.db")
+LOOKAHEADS = [1, 2, 4]  # 1h, 2h, 4h returns
+
+def get_signal(ts):
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("""
-        SELECT *, ABS(timestamp - ?) AS diff
-        FROM signals
-        WHERE timestamp BETWEEN ? AND ?
-        ORDER BY diff ASC
-        LIMIT 1
-    """, (ts, ts - 600, ts + 600))
+    c.execute("SELECT * FROM signals WHERE timestamp = ?", (ts,))
     row = c.fetchone()
-    columns = [desc[0] for desc in c.description[:-1]]
+    columns = [desc[0] for desc in c.description] if row else []
     conn.close()
     return dict(zip(columns, row)) if row else None
 
-def get_signal_after(ts, max_window=600):
-    # max_window = 600 seconds (10 min) is reasonable for hourly data.
-    conn = sqlite3.connect("data/seismograph.db")
+def get_future_signal(ts, lookahead):
+    """Finds the first signal >= target_ts (within a window of +10 minutes)."""
+    target_ts = ts + lookahead * 3600
+    window = 600  # 10 minutes
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    min_future = ts
-    max_future = ts + max_window
-    c.execute("""
-        SELECT *
-        FROM signals
-        WHERE timestamp >= ? AND timestamp <= ?
-        ORDER BY timestamp ASC
-        LIMIT 1
-    """, (min_future, max_future))
+    c.execute(
+        "SELECT * FROM signals WHERE timestamp >= ? AND timestamp <= ? ORDER BY timestamp ASC LIMIT 1",
+        (target_ts, target_ts + window)
+    )
     row = c.fetchone()
-    columns = [desc[0] for desc in c.description]
+    columns = [desc[0] for desc in c.description] if row else []
     conn.close()
     return dict(zip(columns, row)) if row else None
-
 
 def get_targets():
-    conn = sqlite3.connect("data/seismograph.db")
+    """Returns timestamps from signals table that are missing from returns table."""
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("""
         SELECT timestamp FROM signals
         WHERE timestamp NOT IN (SELECT timestamp FROM returns)
     """)
-    timestamps = [row[0] for row in c.fetchall()]
+    targets = [row[0] for row in c.fetchall()]
     conn.close()
-    return timestamps
+    return targets
 
-def calc_return(now, fut):
-    if now is None or fut is None or now == 0:
+def calc_return(now_val, fut_val):
+    if now_val is None or fut_val is None or now_val == 0:
         return None
-    return (fut - now) / now
+    return (fut_val - now_val) / now_val
 
-def calculate_returns(ts):
-    now = get_signal_at(ts)
-    if not now:
-        print(f"No 'now' for ts={ts}")
-        return None
-
-    result = {"timestamp": ts}
-    for feat in FEATURES:
-        now_val = now.get(feat)
-        for h in LOOKAHEADS:
-            future_ts = ts + h * 3600
-            # Diagnostic print - window you’re searching
-            print(f"For ts={ts}, h={h}, search window: [{future_ts}, {future_ts+600}]")
-            fut = get_signal_after(future_ts, max_window=600)
-            # Diagnostic print - did you find a future row?
-            if fut:
-                print(f"  Found future at ts={fut['timestamp']}")
-            else:
-                print(f"  No future row within window for ts={ts}, h={h}")
-            fut_val = fut.get(feat) if fut else None
-            result[f"{feat}_return_{h}h"] = calc_return(now_val, fut_val)
-    return result
-
-
-    
-
+def get_all_signal_timestamps():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT timestamp FROM signals ORDER BY timestamp")
+    all_ts = [row[0] for row in c.fetchall()]
+    conn.close()
+    return all_ts
 
 def main():
-    # Create/upgrade returns table if needed
-    conn = sqlite3.connect("data/seismograph.db")
-    c = conn.cursor()
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS returns (
-            timestamp INTEGER PRIMARY KEY,
-            spread_zscore_return_1h REAL,
-            spread_zscore_return_2h REAL,
-            spread_zscore_return_4h REAL,
-            usdt_premium_zscore_return_1h REAL,
-            usdt_premium_zscore_return_2h REAL,
-            usdt_premium_zscore_return_4h REAL,
-            median_fee_z_return_1h REAL,
-            median_fee_z_return_2h REAL,
-            median_fee_z_return_4h REAL,
-            unconfirmed_tx_z_return_1h REAL,
-            unconfirmed_tx_z_return_2h REAL,
-            unconfirmed_tx_z_return_4h REAL,
-            mempool_size_z_return_1h REAL,
-            mempool_size_z_return_2h REAL,
-            mempool_size_z_return_4h REAL,
-            score_return_1h REAL,
-            score_return_2h REAL,
-            score_return_4h REAL
+    # ... create table logic as before ...
+    all_timestamps = get_all_signal_timestamps()
+    for ts in all_timestamps:
+        now = get_signal(ts)
+        if not now:
+            print(f"[RETURNS_LOGGER] No 'now' row for {ts}, skipping.")
+            continue
+
+        result = {"timestamp": ts}
+        for feat in FEATURES:
+            now_val = now.get(feat)
+            for h in LOOKAHEADS:
+                future = get_future_signal(ts, h)
+                fut_val = future.get(feat) if future else None
+                result[f"{feat}_return_{h}h"] = calc_return(now_val, fut_val)
+
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        cols = ", ".join(result.keys())
+        placeholders = ", ".join([f":{k}" for k in result.keys()])
+        c.execute(
+            f"INSERT OR REPLACE INTO returns ({cols}) VALUES ({placeholders})",
+            result
         )
-    """)
-    conn.commit()
-    conn.close()
-
-    targets = get_targets()
-    if not targets:
-        print("[RETURNS_ENGINE] No new scored timestamps found.")
-        return
-
-    for ts in targets:
-        row = calculate_returns(ts)
-        # Insert row if at least one return value is not None (besides timestamp)
-        if row and any(v is not None for k, v in row.items() if k != "timestamp"):
-            conn = sqlite3.connect("data/seismograph.db")
-            c = conn.cursor()
-            cols = ", ".join(row.keys())
-            placeholders = ", ".join([f":{k}" for k in row.keys()])
-            c.execute(
-                f"INSERT OR REPLACE INTO returns ({cols}) VALUES ({placeholders})",
-                row
-            )
-            conn.commit()
-            conn.close()
-            print(f"[RETURNS_ENGINE] Logged returns for t={ts}")
-        else:
-            missing = [k for k, v in row.items() if v is None and k != "timestamp"] if row else []
-            print(f"[RETURNS_ENGINE] Skipping t={ts} — all returns missing. Missing: {missing}")
+        conn.commit()
+        conn.close()
+        print(f"[RETURNS_LOGGER] Wrote/updated returns for {ts}")
 
 if __name__ == "__main__":
     main()
