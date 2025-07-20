@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # Seismograph Core
 
 Seismograph Core is a modular Python project for collecting, scoring, and analyzing on-chain and market signals for BTC swing trading research. It’s designed for independent, data-driven signal development—no external dependencies, no web dashboards, just raw logs, SQLite, and code you can trust.
@@ -107,5 +107,5 @@ Use `run_logger.py` or write a simple shell script for orchestration.
 │
 └── tests/                       # Unit tests or test scripts (if present)
     └── (test files…)            # Test code to validate pipeline</pre>
->>>>>>> e7f3235de598b4fb548a60375ab1b042a55eef99
+
 
